@@ -1,0 +1,25 @@
+{
+  "seed": 1127,
+  "width": 1920,
+  "height": 1080,
+  "fps": 24,
+  "frames": 240,
+  "info": {
+    "seed": 1127,
+    "W": 1920,
+    "H": 1080,
+    "scans": {
+      "painting": false,
+      "bodyCloth": false,
+      "ground": false
+    },
+    "roles": {
+      "lid": 27,
+      "mouth": 15,
+      "ring": 9,
+      "cover": 24,
+      "cheek": 7
+    }
+  },
+  "renderedAt": "2026-09-25T01:42:48.957Z"
+}

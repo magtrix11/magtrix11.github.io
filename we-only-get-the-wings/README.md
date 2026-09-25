@@ -24,3 +24,12 @@ This folder is the complete starting package for developing the moving-image wor
 - `output/` — intended destination for tests, frames, and exports.
 
 The rejected earlier storyboard and its visual language are intentionally not included.
+
+## Study 01 (first build)
+
+- `VISUAL_INVENTORY.md`: pin-by-pin analysis of the board (39 distinct pins visible in the captures) and ten visual principles.
+- `TECHNIQUE_MAP.md`: techniques, scan-vs-procedural plan, risks, and the study's hypothesis.
+- `PLANNING_REVIEW.md`: the two documents checked against `CLAUDE.md`.
+- `README_RUN.md`: install, preview, render, export.
+- `STUDY_REVIEW.md`: the study compared against the board, including open problems.
+- `output/study01/`: key frames, contact sheet, review movie.
