@@ -1,0 +1,33 @@
+You are now inside the complete project folder for “We Only Get the Wings.” Treat this as an experimental moving-image work, not a website or a generic creative-coding demo.
+
+First, read CLAUDE.md and follow it as permanent project instructions. Then read TREATMENT.md, PROJECT_CONTEXT.md, VISUAL_RULES.md, and TECHNICAL_BRIEF.md in full. The mood board contains 42 individual pin references archived across 11 overlapping screen captures in references/moodboard_raw/. Inspect every capture and every distinct pin visible inside it, identify duplicates/overlaps, and also inspect references/moodboard_contact_sheet.jpg. Do not count the 11 screenshots as 11 references. The completed 42-pin mood board is the visual authority. Do not rely on Pinterest opening successfully, and do not reuse or reconstruct any earlier storyboard, flat polygon visual, or generic visual language.
+
+Do not write animation code yet.
+
+Your first deliverables are:
+
+1. VISUAL_INVENTORY.md — a concrete, pin-by-pin and cross-board analysis of all 42 references: palette, form, texture, material, composition, spatial depth, light, scale, bodily cues, recurring visual relationships, and relevant cultural/art-historical signals. Cite the screen-capture filename and pin position (for example, left column/top) for every major observation. Reconcile overlaps so repeated pins are not mistaken for new references. Separate what is actually visible from your interpretation. End with ten non-negotiable visual principles for this film.
+
+2. TECHNIQUE_MAP.md — translate the inventory into specific production methods. For every major formal quality, name the most appropriate technique in p5.js, Canvas 2D, WebGL/GLSL, JavaScript, or Python; distinguish procedural elements from elements that should eventually use Toni’s original scans; identify risks that would make the result look generic, glossy, flat, decorative, or “AI-made.”
+
+3. At the end of TECHNIQUE_MAP.md, write one 5–8 sentence visual hypothesis for a single 8–12 second proof-of-language study.
+
+After those files exist, review them against CLAUDE.md. Then scaffold a clean local project and create only that one 8–12 second study.
+
+The study must be one continuous transformation, not a montage, diagram, storyboard, title sequence, or collection of effects. Begin with an irregular, materially rich digital-textile organism. A persistent thread must behave simultaneously like nerve, root, route, seam, and data path. The organism reorganizes without disappearing: previous material remains visible as evidence. A fragmented face or closed eye becomes briefly perceptible and is then carried into the next state. The final moment should suggest the first rib, membrane, or wing structure, but never show a literal butterfly.
+
+The target is “a digital organism with textile memory.” Use the saturated and materially complex visual world actually present in the supplied board: cobalt, red, pink, yellow/ochre, green, plum/orange, bone, charcoal, translucency, fibers, soft bodies, vascular tubes, painted fragments, masks, vessels, wire/cage structures, manuscript-like botany/anatomy, archaeological surfaces, and suspended matter. Digitalness should remain visible and intentional through a small, coherent set of mechanisms such as mesh deformation, generative path memory, vertex displacement, stepped interpolation, frame persistence, feedback trails, scan artifacts, chromatic misregistration, dithering, or procedural growth. Do not use default particles, generic flow fields, neon noise, flat polygons, sterile UI, beige craft minimalism, glossy CGI, fake Indigenous motifs, inspirational disability symbolism, or a recognizable AI aesthetic.
+
+Technical requirements:
+
+- Prefer Vite + p5.js, with Canvas/WebGL and optional GLSL only where useful.
+- Use JavaScript for the deterministic timeline, persistent identity, state, and export controls.
+- Use Python only for offline image/texture preparation, palette or mask work, contact sheets, and render assembly.
+- Make the study reproducible with a documented random seed.
+- Render at 1920×1080 for review and preserve a 3840×2160 final path.
+- Keep every control outside or hidden from the captured film frame.
+- Add exact run and export instructions in README_RUN.md.
+- Export at least six representative still frames and a contact sheet.
+- Write STUDY_REVIEW.md comparing the result to exact mood-board filenames and identifying anything that still feels generic or visually unfaithful.
+
+Do not build the complete 3:30–5:00 film yet. Stop after the first study and its review materials, summarize what you made, show me where the key frames/contact sheet are, and ask for my visual approval before expanding.

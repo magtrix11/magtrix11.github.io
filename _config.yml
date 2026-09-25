@@ -46,3 +46,7 @@ kramdown:
   hard_wrap: false
   syntax_highlighter: rouge
   
+
+# Film project workspace — not part of the published site
+exclude:
+  - we-only-get-the-wings
