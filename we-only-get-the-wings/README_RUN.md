@@ -74,6 +74,8 @@ Outputs:
 
 ## 6. Replacing placeholders with Toni's scans
 
+**Interim (current):** `python3 scripts/build_interim_artwork.py` builds `public/artwork/painting.jpg` from Toni's own paintings as they appear in the mood-board screenshots (P10, P12). These are low resolution. The body, strips, cells and membrane are all cut from this one image. The ground is still procedural. Real scans replace the interim file:
+
 1. Put originals in `assets/artwork/` named after the material slot: `painting.*`, `bodyCloth.*`, `ground.*` (`.tif`, `.png` or `.jpg`).
 2. Run `python3 scripts/prepare_assets.py`. It writes runtime copies to `public/artwork/` and a `palette.json` of each scan's dominant colours.
 3. Re-render. `src/film/materials.js` uses a prepared scan when present and otherwise falls back to the seeded **PLACEHOLDER** generator. The render log's `scans:` line shows which slots came from scans.

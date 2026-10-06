@@ -330,12 +330,12 @@ function makeBodyCloth(seed, S) {
   }
   // Baked cylindrical shading across v (light from the upper-left).
   const sh = ctx.createLinearGradient(0, 0, 0, H);
-  sh.addColorStop(0.0, 'rgba(40,10,20,0.6)');
-  sh.addColorStop(0.1, 'rgba(40,10,20,0.2)');
-  sh.addColorStop(0.3, 'rgba(255,240,235,0.14)');
+  sh.addColorStop(0.0, 'rgba(40,10,20,0.38)');
+  sh.addColorStop(0.1, 'rgba(40,10,20,0.12)');
+  sh.addColorStop(0.3, 'rgba(255,240,235,0.04)');
   sh.addColorStop(0.55, 'rgba(40,10,20,0.0)');
-  sh.addColorStop(0.85, 'rgba(40,10,20,0.3)');
-  sh.addColorStop(1.0, 'rgba(30,5,15,0.7)');
+  sh.addColorStop(0.85, 'rgba(40,10,20,0.16)');
+  sh.addColorStop(1.0, 'rgba(30,5,15,0.42)');
   ctx.fillStyle = sh;
   ctx.fillRect(0, 0, W, H);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -399,13 +399,6 @@ function makeGround(seed, PW, PH, K) {
     }
     ctx.stroke();
   }
-  // Ultramarine dry-brush blot, lower right (P13's corner).
-  for (let i = 0; i < 14; i++) {
-    bristleStroke(ctx, rnd,
-      gesturePath(rnd, W * rnd.range(0.84, 0.98), H * rnd.range(0.86, 1.0),
-        rnd.range(120, 260) * k, rnd.range(-0.5, 0.2), rnd.range(-0.15, 0.15)),
-      rnd.range(20, 48) * k, rnd.pick([PAL.ultramarine, PAL.cobalt, PAL.cobalt, PAL.oxblood]), rnd.range(0.12, 0.3));
-  }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   weaveTooth(ctx, c.width, c.height, rnd, 0.035, Math.max(2, Math.round(3 * K)));
   return c;
@@ -434,13 +427,84 @@ export function meanColor(src, x, y, w, h) {
   return [r / n, g / n, b / n];
 }
 
+// The body made of the painting itself ("pigment becomes skin"): a band of
+// the painting runs the length of the body, cut and re-sewn at a few seams,
+// with raw canvas showing in places and bands of wound yarn that pinch the
+// silhouette. Used whenever the painting slot is a real image.
+function makeBodyFromPainting(painting, seed, S) {
+  const W = 2048, H = 256;
+  const c = canvas(W * S, H * S);
+  const ctx = c.getContext('2d');
+  ctx.scale(S, S);
+  const rnd = makeRandom(seed ^ 0xb0d8);
+  const pinches = [];
+  let x = 0;
+  while (x < W) {
+    const kind = rnd.next() < 0.16 ? 'wound' : rnd.next() < 0.12 ? 'muslin' : 'paint';
+    const len = kind === 'wound' ? rnd.range(30, 64) : rnd.range(120, 300);
+    const x1 = Math.min(W, x + len);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x - 8, 0);
+    for (let y = 0; y <= H; y += 16) ctx.lineTo(x - 8 + rnd.range(-6, 6), y);
+    ctx.lineTo(x1 + 2, H); ctx.lineTo(x1 + 2, 0); ctx.closePath();
+    ctx.clip();
+    if (kind === 'paint') {
+      // a window of the painting, slightly rotated per piece
+      const sx = rnd.range(0, painting.width - 360), sy = rnd.range(0, painting.height - 200);
+      ctx.translate((x + x1) / 2, H / 2);
+      ctx.rotate(rnd.range(-0.12, 0.12));
+      ctx.drawImage(painting, sx, sy, (x1 - x + 20) * rnd.range(0.9, 1.4), 180 * rnd.range(0.9, 1.3),
+        -(x1 - x) / 2 - 14, -H / 2 - 10, x1 - x + 28, H + 20);
+    } else clothPatch(ctx, rnd, kind, x - 18, x1 + 2, H, 1);
+    ctx.restore();
+    if (kind === 'wound') pinches.push({ u0: x / W, u1: x1 / W });
+    else if (x > 0) {
+      ctx.strokeStyle = rnd.pick(['rgba(245,238,225,0.8)', 'rgba(35,20,20,0.75)', 'rgba(160,40,35,0.8)']);
+      ctx.lineWidth = 1.3;
+      for (let y = rnd.range(3, 9); y < H; y += rnd.range(9, 15)) {
+        const jx = x - 8 + rnd.range(-3, 3);
+        ctx.beginPath(); ctx.moveTo(jx - 6, y); ctx.lineTo(jx + 5, y + rnd.range(-2, 2)); ctx.stroke();
+      }
+    }
+    x = x1;
+  }
+  // canvas threads and creases across the body
+  for (let i = 0; i < 1400; i++) {
+    const px = rnd.range(0, W), py = rnd.range(0, H), l = rnd.range(3, 12), a = rnd.gauss() * 0.4 + (rnd.next() < 0.5 ? 0 : Math.PI / 2);
+    ctx.strokeStyle = rnd.next() < 0.5 ? `rgba(250,244,232,${rnd.range(0.05, 0.2)})` : `rgba(40,20,20,${rnd.range(0.05, 0.18)})`;
+    ctx.lineWidth = rnd.range(0.4, 1);
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); ctx.stroke();
+  }
+  for (let i = 0; i < 26; i++) {
+    const px = rnd.range(0, W), w = rnd.range(8, 30);
+    const g = ctx.createLinearGradient(px - w, 0, px + w, 0);
+    g.addColorStop(0, 'rgba(30,10,15,0)'); g.addColorStop(0.5, `rgba(30,10,15,${rnd.range(0.12, 0.3)})`); g.addColorStop(1, 'rgba(30,10,15,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(px - w, 0, 2 * w, H);
+  }
+  const sh = ctx.createLinearGradient(0, 0, 0, H);
+  sh.addColorStop(0.0, 'rgba(30,10,15,0.45)');
+  sh.addColorStop(0.15, 'rgba(30,10,15,0.08)');
+  sh.addColorStop(0.5, 'rgba(30,10,15,0)');
+  sh.addColorStop(0.85, 'rgba(30,10,15,0.18)');
+  sh.addColorStop(1.0, 'rgba(25,5,10,0.55)');
+  ctx.fillStyle = sh;
+  ctx.fillRect(0, 0, W, H);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  weaveTooth(ctx, c.width, c.height, rnd, 0.05, Math.max(2, Math.round(2 * S)));
+  c.pinches = pinches;
+  return c;
+}
+
 export async function buildMaterials(seed, W, H, k) {
   const s = Math.max(1, k);
   const [painting, bodyCloth, ground] = await Promise.all(
     ['painting', 'bodyCloth', 'ground'].map(loadArtwork));
+  const paint = painting || makePainting(seed, s);
   return {
-    painting: painting || makePainting(seed, s),
-    bodyCloth: bodyCloth || makeBodyCloth(seed, s),
+    painting: paint,
+    bodyCloth: bodyCloth || (painting ? makeBodyFromPainting(paint, seed, s) : makeBodyCloth(seed, s)),
     ground: ground ? scaleTo(ground, W, H) : makeGround(seed, W, H, k),
     grain: makeGrain(seed, 384),
     scans: { painting: !!painting, bodyCloth: !!bodyCloth, ground: !!ground },

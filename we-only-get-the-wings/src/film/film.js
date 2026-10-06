@@ -10,12 +10,16 @@ import { truncate, quadPts, polyline } from './draw.js';
 import {
   lightAt, drawStrip, drawGold, drawBody, drawIncisions, drawRoute, drawSeam, drawRootlets,
   drawTail, drawLashes, drawLid, drawCell, drawNet, drawWire, membranePanel, drawMembrane,
-  silhouette, stripGeometry,
+  silhouette, stripGeometry, setSurfaceTextures,
 } from './render.js';
-import { compositeShadows, scanBand, grainAndFlicker } from './post-process.js';
+import { compositeShadows, scanBand, grainAndFlicker, reliefAndLight } from './post-process.js';
 
 export async function createFilm(p, { W, H, seed }) {
   const k = W / 1920;
+  // Locked camera, closer than the full organism: the body is cropped by the
+  // frame at its extremes, like a macro photograph of a table.
+  const Z = 1.22, CX = 880, CY = 535;
+  const VIEW = [k * Z, 0, 0, k * Z, k * CX * (1 - Z), k * CY * (1 - Z)];
   const mats = await buildMaterials(seed, W, H, k);
   const org = createOrganism(seed, { pinches: mats.bodyCloth.pinches || [] });
   const pw = mats.painting.width, ph = mats.painting.height;
@@ -23,6 +27,18 @@ export async function createFilm(p, { W, H, seed }) {
   const roles = org.assignRoles(meanOf);
   const means = org.strips.map((s) => meanOf(s.uv));
   const thread = createThread(seed, org);
+  // windows of the painting closest to a target colour (for cells, membrane)
+  const findWindow = (target) => {
+    let best = null;
+    const ww = pw / 12, wh = ph / 6;
+    for (let gx = 0; gx < 11; gx++) for (let gy = 0; gy < 5; gy++) {
+      const m = meanColor(mats.painting, gx * ww, gy * wh, ww * 2, wh * 2);
+      const d = Math.hypot(m[0] - target[0], m[1] - target[1], m[2] - target[2]);
+      if (!best || d < best.d) best = { d, img: mats.painting, x: gx * ww, y: gy * wh, w: ww * 2, h: wh * 2 };
+    }
+    return best;
+  };
+  setSurfaceTextures(findWindow([222, 160, 70]), findWindow([228, 130, 150]));
   const cw = mats.bodyCloth.width, chh = mats.bodyCloth.height;
   const clothMeans = Array.from({ length: 48 }, (_, i) => meanColor(mats.bodyCloth, (i / 48) * cw, chh * 0.3, cw / 48, chh * 0.4));
 
@@ -43,7 +59,7 @@ export async function createFilm(p, { W, H, seed }) {
     const st = org.state(ts);
     const th = thread.state(ts, stepIndex(ts), st);
     mctx.save();
-    mctx.setTransform(k, 0, 0, k, 0, 0);
+    mctx.setTransform(...VIEW);
     mctx.lineJoin = 'round';
     mctx.strokeStyle = MEM + "0.06)";
     mctx.lineWidth = 1.1;
@@ -145,7 +161,7 @@ export async function createFilm(p, { W, H, seed }) {
 
     // ---------------- shadows
     const sl = shadowLow.getContext('2d'), sh = shadowLift.getContext('2d');
-    for (const c of [sl, sh]) { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H); c.setTransform(k, 0, 0, k, 0, 0); c.lineCap = 'round'; }
+    for (const c of [sl, sh]) { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H); c.setTransform(...VIEW); c.lineCap = 'round'; }
     silhouette(sl, { ribbon: [st.sp.left, st.sp.right] });
     silhouette(sl, { line: th.route.pts, w: 2.2 });
     silhouette(sl, { line: th.tail.pts, w: 2.4 });
@@ -168,11 +184,11 @@ export async function createFilm(p, { W, H, seed }) {
     main.globalCompositeOperation = 'multiply';
     main.drawImage(memory, 0, 0);
     main.restore();
-    compositeShadows(main, shadowLow, shadowLift, light, k);
+    compositeShadows(main, shadowLow, shadowLift, light, k * Z);
 
     // ---------------- organism
     main.save();
-    main.setTransform(k, 0, 0, k, 0, 0);
+    main.setTransform(...VIEW);
     const jitter = [(hash(step, 11) - 0.5) * 0.9, (hash(step, 12) - 0.5) * 0.9];
 
     drawRoute(main, th.route);
@@ -228,6 +244,7 @@ export async function createFilm(p, { W, H, seed }) {
     main.restore();
 
     // ---------------- post
+    reliefAndLight(main, shadowLow, tmp, light, W, H, k);
     scanBand(main, prev, ts, W, H, k, tmp, band);
     grainAndFlicker(main, mats.grain, step, W, H, k);
 

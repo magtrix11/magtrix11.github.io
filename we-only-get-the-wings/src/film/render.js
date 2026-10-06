@@ -67,7 +67,7 @@ export function drawStrip(ctx, img, strip, pose, mean, opts = {}) {
   if (!opts.flat) {
     // Raw canvas showing at the cut edges.
     ctx.lineWidth = 0.9;
-    ctx.strokeStyle = 'rgba(246,240,228,0.55)';
+    ctx.strokeStyle = 'rgba(246,240,228,0.22)';
     polyline(ctx, g.left); ctx.stroke();
     polyline(ctx, g.right); ctx.stroke();
     // Fray at both ends.
@@ -185,11 +185,6 @@ export function drawBody(ctx, cloth, sp, clothMeans) {
   // fibre fringe first so its roots tuck under the body edge
   drawFringe(ctx, sp, clothMeans);
   texRibbon(ctx, cloth, sp.left, sp.right, uvs);
-  ctx.save();
-  ctx.lineWidth = 1.6;
-  ctx.strokeStyle = 'rgba(55,18,30,0.25)';
-  polyline(ctx, sp.right); ctx.stroke();
-  ctx.restore();
 }
 
 // Loose fibres along the silhouette (P23, P24) and a frayed tuft at each
@@ -384,7 +379,7 @@ export function drawLid(ctx, img, strip, eye, close, mean) {
   ctx.fill();
   ctx.restore();
   ctx.save();
-  ctx.strokeStyle = 'rgba(246,240,228,0.6)'; ctx.lineWidth = 0.9;
+  ctx.strokeStyle = 'rgba(246,240,228,0.25)'; ctx.lineWidth = 0.9;
   polyline(ctx, top); ctx.stroke();
   // lid shadow onto the eye
   if (close < 0.97) {
@@ -396,28 +391,47 @@ export function drawLid(ctx, img, strip, eye, close, mean) {
 }
 
 // ---------------------------------------------------------------- cells
+// Optional painted surface for cells and membrane: windows of the painting
+// chosen by colour (set once by film.js).
+let CELL_TEX = null, MEMBRANE_TEX = null;
+export function setSurfaceTextures(cell, membrane) { CELL_TEX = cell; MEMBRANE_TEX = membrane; }
+
 export function drawCell(ctx, c, pos, scale = 1) {
   const r = c.r * scale;
   const [x, y] = pos;
   ctx.save();
   const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.05, x, y, r);
-  g.addColorStop(0, '#f8d892');
-  g.addColorStop(0.45, '#dea452');
-  g.addColorStop(0.85, '#b76c1c');
-  g.addColorStop(1, '#7c4310');
+  g.addColorStop(0, '#e2ad5c');
+  g.addColorStop(0.5, '#c98a36');
+  g.addColorStop(0.85, '#9c5a18');
+  g.addColorStop(1, '#6a3810');
   ctx.fillStyle = g;
   ctx.beginPath();
   for (let i = 0; i <= 22; i++) {
-    const a = (i / 22) * TAU, rr = r * (1 + (hash(c.seed, i % 22) - 0.5) * 0.14);
+    const a = (i / 22) * TAU, rr = r * (1 + 0.16 * Math.sin(a * 3 + c.seed) + (hash(c.seed, i % 22) - 0.5) * 0.12);
     const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
     i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
   }
   ctx.closePath();
   ctx.fill();
+  if (CELL_TEX) {
+    ctx.save();
+    ctx.clip();
+    ctx.globalAlpha = 0.6;
+    const t = CELL_TEX, o = hash(c.seed, 5) * 0.5;
+    ctx.drawImage(t.img, t.x + o * t.w, t.y + o * t.h, t.w * 0.5, t.h * 0.5, x - r, y - r, 2 * r, 2 * r);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'multiply';
+    const sh = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r * 1.05);
+    sh.addColorStop(0, 'rgba(255,240,220,1)'); sh.addColorStop(0.7, 'rgba(200,140,90,1)'); sh.addColorStop(1, 'rgba(90,45,20,1)');
+    ctx.fillStyle = sh;
+    ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+    ctx.restore();
+  }
   // rind speckle (P14)
   for (let i = 0; i < 10 + r; i++) {
     const a = hash(c.seed, i, 1) * TAU, d = Math.sqrt(hash(c.seed, i, 2)) * r * 0.9;
-    ctx.fillStyle = hash(c.seed, i, 3) < 0.6 ? 'rgba(150,70,15,0.45)' : 'rgba(255,230,170,0.5)';
+    ctx.fillStyle = hash(c.seed, i, 3) < 0.75 ? 'rgba(110,50,10,0.35)' : 'rgba(240,200,130,0.25)';
     ctx.beginPath(); ctx.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, 0.6 + hash(c.seed, i, 4) * 1.1, 0, TAU); ctx.fill();
   }
   ctx.restore();
@@ -438,8 +452,8 @@ export function drawNet(ctx, net, cellState) {
         const src = c.phase === 'home' ? c.pos : c.pos;
         const dst = o.phase === 'home' ? o.pos : o.home;
         const dx = dst[0] - src[0], dy = dst[1] - src[1], l = Math.hypot(dx, dy) || 1;
-        const q = [src[0] + dx / l * (c.r + 9), src[1] + dy / l * (c.r + 9)];
-        ctx.strokeStyle = 'rgba(242,238,228,0.9)'; ctx.lineWidth = e.w * 0.8;
+        const q = [src[0] + dx / l * (c.r + 4) + dy / l * 2, src[1] + dy / l * (c.r + 4) - dx / l * 2];
+        ctx.strokeStyle = 'rgba(232,226,212,0.6)'; ctx.lineWidth = e.w * 0.5;
         ctx.beginPath(); ctx.moveTo(src[0] + dx / l * c.r * 0.7, src[1] + dy / l * c.r * 0.7); ctx.lineTo(q[0], q[1]); ctx.stroke();
       }
       continue;
@@ -451,7 +465,7 @@ export function drawNet(ctx, net, cellState) {
     w = w * 1.35;
     ctx.strokeStyle = 'rgba(110,80,60,0.3)'; ctx.lineWidth = w + 1.2;
     ctx.beginPath(); ctx.moveTo(p0[0] + 1, p0[1] + 1.2); ctx.quadraticCurveTo(mid[0] + 1, mid[1] + 1.2, p1[0] + 1, p1[1] + 1.2); ctx.stroke();
-    ctx.strokeStyle = l > 55 ? 'rgba(244,240,230,0.85)' : '#f1ede3'; ctx.lineWidth = w;
+    ctx.strokeStyle = l > 55 ? 'rgba(236,230,215,0.7)' : 'rgba(236,228,210,0.85)'; ctx.lineWidth = w;
     ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.quadraticCurveTo(mid[0], mid[1], p1[0], p1[1]); ctx.stroke();
   }
   ctx.restore();
@@ -530,11 +544,14 @@ export function drawMembrane(ctx, painting, panel, idx) {
     ctx.fillStyle = tints[j];
     polyline(ctx, band(f0, f1, m0, m1)); ctx.closePath(); ctx.fill();
   });
-  if (idx === 1 || idx === 3) {
+  {
+    // painted membrane: the pinkest passage of the painting, stained through
     const xs = poly.map((p) => p[0]), ys = poly.map((p) => p[1]);
     const x0 = Math.min(...xs), y0 = Math.min(...ys), w = Math.max(...xs) - x0, h = Math.max(...ys) - y0;
-    ctx.globalAlpha = 0.14;
-    ctx.drawImage(painting, (0.1 + 0.2 * idx) * painting.width, 0.2 * painting.height, painting.width * 0.2, painting.height * 0.3, x0, y0, w, h);
+    const t = MEMBRANE_TEX || { img: painting, x: 0.1 * painting.width, y: 0.2 * painting.height, w: 0.2 * painting.width, h: 0.3 * painting.height };
+    ctx.globalAlpha = 0.2;
+    const o = (idx * 0.17) % 0.5;
+    ctx.drawImage(t.img, t.x + o * t.w, t.y, t.w * 0.6, t.h * 0.6, x0, y0, w, h);
     ctx.globalAlpha = 1;
   }
   ctx.globalCompositeOperation = 'source-over';

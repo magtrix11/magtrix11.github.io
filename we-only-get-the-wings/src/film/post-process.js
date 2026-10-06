@@ -13,7 +13,7 @@ export function compositeShadows(ctx, low, lifted, light, k) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = 'multiply';
   ctx.filter = `blur(${(light.blur * k).toFixed(1)}px)`;
-  ctx.globalAlpha = 0.34;
+  ctx.globalAlpha = 0.48;
   ctx.drawImage(low, dx, dy);
   ctx.filter = `blur(${(light.blur * 2.4 * k).toFixed(1)}px)`;
   ctx.globalAlpha = 0.24;
@@ -68,7 +68,7 @@ export function grainAndFlicker(ctx, grain, step, W, H, k) {
   const ox = Math.floor(hash(step, 1) * grain.width), oy = Math.floor(hash(step, 2) * grain.height);
   ctx.translate(-ox, -oy);
   ctx.globalCompositeOperation = 'overlay';
-  ctx.globalAlpha = 0.085;
+  ctx.globalAlpha = 0.13;
   ctx.fillStyle = pat;
   ctx.fillRect(0, 0, W + grain.width, H + grain.height);
   ctx.restore();
@@ -77,6 +77,51 @@ export function grainAndFlicker(ctx, grain, step, W, H, k) {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = e > 0 ? `rgba(255,250,240,${e})` : `rgba(18,14,22,${-e})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+// Surface relief under a raking light. Two scales of height are read
+// straight off the image: fine luminance variation (weave, brush ridges,
+// fibre) and a blurred silhouette mask (the soft volume of stuffed cloth,
+// cells, strips lying on the ground). Each is lit along the light
+// direction, so every material gets real tooth and the bodies get mass
+// instead of a painted-on highlight.
+export function reliefAndLight(ctx, mask, scratch, light, W, H, k) {
+  const sctx = scratch.getContext('2d');
+  sctx.setTransform(1, 0, 0, 1, 0, 0);
+  sctx.clearRect(0, 0, W, H);
+  sctx.filter = `blur(${(16 * k).toFixed(1)}px)`;
+  sctx.drawImage(mask, 0, 0);
+  sctx.filter = 'none';
+  const m = sctx.getImageData(0, 0, W, H).data;
+  const img = ctx.getImageData(0, 0, W, H);
+  const d = img.data;
+  const lx = -Math.cos(light.dir), ly = -Math.sin(light.dir);
+  const s1 = Math.max(1, Math.round(k));
+  const s2 = Math.max(3, Math.round(6 * k));
+  const o1 = (Math.round(ly * s1) * W + Math.round(lx * s1)) * 4;
+  const o2 = (Math.round(ly * s2) * W + Math.round(lx * s2)) * 4;
+  const lum = new Float32Array(W * H);
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) lum[j] = d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11;
+  const lo = Math.abs(o2) + 4, hi = d.length - Math.abs(o2) - 4;
+  const fine = 0.22 + 0.12 * light.e, vol = 0.42 + 0.2 * light.e;
+  for (let i = lo; i < hi; i += 4) {
+    const j = i >> 2;
+    const g1 = lum[j + (o1 >> 2)] - lum[j - (o1 >> 2)];
+    const a = m[i + 3];
+    let sh = g1 * fine;
+    if (a > 4) sh += (m[i + 3 + o2] - m[i + 3 - o2]) * vol * (0.4 + 0.6 * (a / 255));
+    d[i] += sh; d[i + 1] += sh * 0.97; d[i + 2] += sh * 0.92;
+  }
+  ctx.putImageData(img, 0, 0);
+  // lens falloff: a photograph, not a page
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const g = ctx.createRadialGradient(W * 0.48, H * 0.5, H * 0.35, W * 0.5, H * 0.5, H * 1.05);
+  g.addColorStop(0, 'rgba(20,16,22,0)');
+  g.addColorStop(1, 'rgba(20,16,22,0.28)');
+  ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
   ctx.restore();
 }

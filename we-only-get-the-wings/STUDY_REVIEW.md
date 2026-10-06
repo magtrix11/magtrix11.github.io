@@ -1,5 +1,23 @@
 # Study 01: Review against the mood board
 
+## Revision 2 (after Toni's feedback: "too cartoony")
+
+**What changed:**
+
+- **Real paint.** The paint is now Toni's own paintings (P10, P12), taken from the board screenshots as an interim stand-in for scans. The generated "painting" is gone.
+- **Body.** The body is made of the painting ("pigment becomes skin"): painted canvas pieces re-sewn end to end, raw canvas showing in places, and wound yarn at the pinches. It is no longer a smooth pink tube.
+- **Relief and light.** A pass reads surface relief from the image and lights it from the raking light. This replaces the painted-on highlight that made the body look plastic.
+- **Edges.** Outline strokes were removed or softened.
+- **Camera and photography.** The camera is about 1.2× closer, so the body is cropped by the frame. A lens falloff and heavier grain were added.
+- **Cells and membrane.** The cells and membrane take their colour from passages of the same painting. The cells' white netting is quieter.
+- **Ground.** The fake brush blot in the corner was removed.
+
+**What still reads as made-by-computer:** the knotted strips on the ribs (still tag-like), the wire ribs' even curves, the cell cluster, and the procedural ground. The interim paint is low resolution (screenshot crops magnified about 3×). Real scans are still the biggest remaining step.
+
+---
+
+## Revision 1 review (original)
+
 **Reviewed material:** `output/study01/contact_sheet.jpg`, the 9 key frames in `output/study01/keyframes/`, the movie `output/study01/study01_1080.mp4`, and all 240 frames. Pin IDs (P01–P39) and their capture filenames follow the ledger in `VISUAL_INVENTORY.md`.
 
 **Summary.** The study proves the *continuity logic*: one thread, persistent strips and cells, a ground that remembers, and a face that is carried into the rib/membrane structure. It proves the *palette* partly. It does not yet prove the *material truth* of the board. Too much of the surface still reads as well-made digital illustration rather than photographed matter. The main cause is that the textures are procedural placeholders. Several specific failures below would remain even with scans, and they need decisions before any expansion.

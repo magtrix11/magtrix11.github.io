@@ -181,7 +181,7 @@ export function createOrganism(seed, opts = {}) {
   const net = [];
   for (let i = 0; i < cells.length; i++) for (let j = i + 1; j < cells.length; j++) {
     const d = Math.hypot(cells[i].off[0] - cells[j].off[0], cells[i].off[1] - cells[j].off[1]);
-    if (d < (cells[i].r + cells[j].r) * 1.3) net.push({ i, j, w: rnd.range(1.8, 3.4), sag: rnd.range(-0.25, 0.25) });
+    if (d < (cells[i].r + cells[j].r) * 1.12) net.push({ i, j, w: rnd.range(1.2, 2.6), sag: rnd.range(-0.3, 0.3) });
   }
   // Roles: 0 -> iris, 1 -> second eye, 2..6 -> rib joints, rest stay.
   cells[0].role = { kind: 'iris', start: 4.45, dur: 0.75 };
