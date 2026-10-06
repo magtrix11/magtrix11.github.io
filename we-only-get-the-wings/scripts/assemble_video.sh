@@ -14,7 +14,7 @@ fi
 mkdir -p "$(dirname "$OUT")"
 # H.264 High, 4:2:0 for compatibility, near-lossless CRF for review.
 "$FF" -y -loglevel error -framerate 24 -i "$SRC/frames/f_%03d.png" \
-  -c:v libx264 -preset slow -crf 16 -pix_fmt yuv420p -movflags +faststart \
+  -c:v libx264 -preset slow -crf 23 -pix_fmt yuv420p -movflags +faststart \
   -color_primaries bt709 -color_trc bt709 -colorspace bt709 "$OUT"
 # Optional mastering intermediate (large): ProRes 4444
 if [ "${PRORES:-0}" = "1" ]; then

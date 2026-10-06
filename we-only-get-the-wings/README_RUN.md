@@ -70,7 +70,7 @@ Outputs:
 
 - `output/study01/keyframes/kf_<frame>_<seconds>s.jpg`: 9 full-resolution key frames.
 - `output/study01/contact_sheet.jpg`: labelled review sheet. The labels appear only on the sheet, never on frames.
-- `output/study01/study01_1080.mp4`: H.264, CRF 16, BT.709.
+- `output/study01/study01_1080.mp4`: H.264, CRF 23, BT.709.
 
 ## 6. Replacing placeholders with Toni's scans
 
