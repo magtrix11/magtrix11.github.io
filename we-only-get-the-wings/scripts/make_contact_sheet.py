@@ -16,15 +16,23 @@ from PIL import Image, ImageDraw, ImageFont
 
 # frame -> what the frame is evidence of
 KEYFRAMES = [
-    (0, "organism at rest; thread as route, seam, root"),
-    (66, "route snaps to an orthogonal data path"),
-    (84, "scanner band; tail settling, route pulled taut"),
-    (108, "front of the body rolls up from its tip"),
-    (150, "eye from cell, cobalt ring, thread; lid descending"),
-    (165, "eyelid closed along the thread's seam"),
-    (190, "seam continues past the corner: first rib"),
-    (214, "membrane between ribs; gold catches light"),
-    (239, "final: rib/fan/membrane rooted in the eye"),
+    (0, "already alive: uneven pressure, flattened planes, open tears"),
+    (24, "fibres and thread tighten; nothing crawls"),
+    (48, "compression begins in the middle, not at an end"),
+    (66, "folding at different times; route snaps to a data path"),
+    (84, "chamber closes over; red/cobalt memory slips (stress)"),
+    (96, "two cavities and a red slit come into line"),
+    (108, "face perceptible: the iris cell lies in one cavity"),
+    (120, "face held; its contours burn into the ground"),
+    (132, "alignment breaks; stress registers in the memory"),
+    (144, "the eye cavity is stitched shut by the thread"),
+    (160, "thread drawn back out of the body to the closed eye"),
+    (176, "the eye is a seam; face survives as stain and contour"),
+    (192, "the seam continues outward as the first rib"),
+    (204, "ribs grow in pieces; material catches and bunches"),
+    (216, "membrane stretched between attachments, holed"),
+    (228, "gold catches the light once; ribs still incomplete"),
+    (239, "end: unresolved tension, trembling tips"),
 ]
 
 
@@ -47,19 +55,19 @@ def main(src, dest):
         im.save(dest / "keyframes" / f"kf_{n:03d}_{n / fps:05.2f}s.jpg", quality=93, subsampling=0)
         thumbs.append((n, note, im))
 
-    cols, tw = 3, 640
+    cols, tw = 4, 480
     th = round(tw * 9 / 16)
     pad, label = 16, 44
     rows = (len(thumbs) + cols - 1) // cols
     sheet = Image.new("RGB", (cols * tw + (cols + 1) * pad, rows * (th + label) + (rows + 1) * pad + 40), (22, 20, 22))
     d = ImageDraw.Draw(sheet)
     try:
-        font = ImageFont.truetype("DejaVuSans.ttf", 15)
+        font = ImageFont.truetype("DejaVuSans.ttf", 13)
         big = ImageFont.truetype("DejaVuSans.ttf", 18)
     except OSError:
         font = big = ImageFont.load_default()
     seed = meta.get("seed", "?")
-    d.text((pad, 12), f"We Only Get the Wings - study 01 - seed {seed} - {meta.get('width', '?')}x{meta.get('height', '?')} @ {fps} fps",
+    d.text((pad, 12), f"We Only Get the Wings - study 01 rev 3 - seed {seed} - {meta.get('width', '?')}x{meta.get('height', '?')} @ {fps} fps",
            fill=(230, 225, 215), font=big)
     for i, (n, note, im) in enumerate(thumbs):
         x = pad + (i % cols) * (tw + pad)

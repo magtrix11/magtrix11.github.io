@@ -72,6 +72,16 @@ Outputs:
 - `output/study01/contact_sheet.jpg`: labelled review sheet. The labels appear only on the sheet, never on frames.
 - `output/study01/study01_1080.mp4`: H.264, CRF 23, BT.709.
 
+### A/B comparison against Revision 2
+
+Revision 2 is preserved in `output/study01_rev2/` and as git tag `study01-rev2`. To re-render its frames and compare:
+
+```bash
+git worktree add ../rev2 study01-rev2
+(cd ../rev2/we-only-get-the-wings && npm install && node scripts/render.mjs --out /tmp/rev2)
+python3 scripts/make_ab_sheet.py /tmp/rev2/frames renders/study01_1080/frames output/study01/ab_rev2_vs_rev3.jpg
+```
+
 ## 6. Replacing placeholders with Toni's scans
 
 **Interim (current):** `python3 scripts/build_interim_artwork.py` builds `public/artwork/painting.jpg` from Toni's own paintings as they appear in the mood-board screenshots (P10, P12). These are low resolution. The body, strips, cells and membrane are all cut from this one image. The ground is still procedural. Real scans replace the interim file:

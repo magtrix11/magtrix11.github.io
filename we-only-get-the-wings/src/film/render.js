@@ -190,14 +190,14 @@ export function drawBody(ctx, cloth, sp, clothMeans) {
 // Loose fibres along the silhouette (P23, P24) and a frayed tuft at each
 // open end. Each fibre has a fixed identity (hash of its index), so it moves
 // with the body rather than flickering.
-function drawFringe(ctx, sp, clothMeans) {
+export function drawFringe(ctx, sp, clothMeans, i0 = 0, i1 = Infinity) {
   const n = sp.pts.length;
   const yarn = ['#e2b020', '#c8302b', '#2c4fb0', '#e8742c', '#f1ede3'];
   ctx.save();
   ctx.lineCap = 'round';
   for (const side of [0, 1]) {
     const edge = side ? sp.right : sp.left;
-    for (let i = 2; i < n - 2; i++) {
+    for (let i = Math.max(2, i0); i < Math.min(n - 2, i1); i++) {
       if (hash(i, side, 501) > 0.62) continue;
       const u = i / (n - 1);
       const m = clothMeans[Math.min(clothMeans.length - 1, Math.floor(u * clothMeans.length))];
@@ -230,6 +230,7 @@ function drawFringe(ctx, sp, clothMeans) {
   // frayed open ends
   for (const end of [0, 1]) {
     const i = end ? n - 1 : 0;
+    if (i < i0 || i > i1) continue;
     const th = sp.ths[i] + (end ? 0 : Math.PI);
     const m = clothMeans[end ? clothMeans.length - 1 : 0];
     const w = sp.ws[i];
@@ -277,7 +278,7 @@ export function drawIncisions(ctx, org, sp, t, incisions) {
 }
 
 // ---------------------------------------------------------------- thread
-function strokeThread(ctx, pts, w = 2) {
+export function strokeThread(ctx, pts, w = 2) {
   if (pts.length < 2) return;
   ctx.save();
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';

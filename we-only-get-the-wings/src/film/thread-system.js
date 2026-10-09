@@ -3,12 +3,14 @@
 //   data path — during reorganisation the route snaps to an orthogonal lattice
 //   seam      — runs through the body as a running stitch
 //   root/nerve— branches out of the head, then leaves its rootlets behind
-//   eyelid    — outlines the eye; the lid closes onto it
-//   rib       — keeps going past the eye's outer corner and becomes rib 0
+//   eyelid    — stitches the lid cavity shut (drawn with the cavity)
+//   rib       — is drawn back out of the body to the closed eye and keeps
+//               going past its outer end as rib 0; the stitch holes it
+//               leaves along the body remain
 // Geometry is a pure function of held time.
 
 import { makeRandom, makeNoise1D, hash } from './rng.js';
-import { K, clamp, lerp, easeInOut, settle, win } from './timeline.js';
+import { K, clamp, lerp, easeInOut, settle, win, move } from './timeline.js';
 import { resample, lerpPts, quadPts, truncate, polyLength, tangentAt } from './draw.js';
 
 const NR = 120; // route resolution
@@ -105,13 +107,26 @@ export function createThread(seed, org) {
     return { pts, stepped, steppedPts: stepped ? quantise(pts, 10, step) : null };
   }
 
-  // Seam along the body centreline with a small wander.
-  function seam(sp) {
+  // Seam along the body centreline with a small wander, up to uEnd.
+  function seam(sp, uEnd) {
     const out = [];
-    for (let i = 2; i <= sp.pts.length - 3; i++) {
+    const N = sp.pts.length - 1;
+    const iEnd = Math.min(N - 2, Math.round(uEnd * N));
+    for (let i = 2; i <= iEnd; i++) {
       const n = [-Math.sin(sp.ths[i]), Math.cos(sp.ths[i])];
-      const w = nz(i * 0.21) * sp.ws[i] * 0.08;
+      const w = nz(i * 0.21) * sp.ws[i] * 0.07;
       out.push([sp.pts[i][0] + n[0] * w, sp.pts[i][1] + n[1] * w]);
+    }
+    return out;
+  }
+  // Where the thread has been pulled out, its stitch holes stay.
+  function holes(sp, uEnd) {
+    const out = [];
+    const N = sp.pts.length - 1;
+    for (let i = Math.round(uEnd * N) + 1; i <= N - 2; i++) {
+      const n = [-Math.sin(sp.ths[i]), Math.cos(sp.ths[i])];
+      const w = nz(i * 0.21) * sp.ws[i] * 0.07;
+      out.push([sp.pts[i][0] + n[0] * w, sp.pts[i][1] + n[1] * w, sp.ths[i], i]);
     }
     return out;
   }
@@ -122,9 +137,9 @@ export function createThread(seed, org) {
     let th = sp.ths[sp.ths.length - 1];
     const pts = [head.slice()];
     let p = head.slice();
-    const n = 40, len = 250;
+    const n = 40, len = 230;
     for (let i = 0; i < n; i++) {
-      th += 0.05 * Math.sin(i * 0.3) + 0.018;
+      th += 0.05 * Math.sin(i * 0.3) + 0.02;
       p = [p[0] + Math.cos(th) * (len / n), p[1] + Math.sin(th) * (len / n)];
       pts.push(p);
     }
@@ -148,7 +163,6 @@ export function createThread(seed, org) {
         main.push(p);
       }
       out.push(main);
-      // one sub-branch each
       const bi = rr.int(4, 9);
       let q = main[bi].slice(), bth = th - r.side * 0.9;
       const sub = [q.slice()];
@@ -159,45 +173,35 @@ export function createThread(seed, org) {
   }
   const frozenRootlets = rootlets(rootPath(org.spine(K.rootDetach)));
 
-  // Eye path: head tip -> second (closed) eye -> inner corner -> lower lid
-  // -> outer corner -> first stretch of rib 0.
-  function eyePath(sp, ribG) {
-    const head = sp.pts[sp.pts.length - 1];
-    const { eye, C } = org;
-    // from the head, the thread hugs the inside of the loop up to the inner corner
-    const ctrl = [lerp(head[0], eye.I[0], 0.5) - (C[0] - lerp(head[0], eye.I[0], 0.5)) * 0.5,
-      lerp(head[1], eye.I[1], 0.5) - (C[1] - lerp(head[1], eye.I[1], 0.5)) * 0.5];
-    const toI = quadPts(head, ctrl, eye.I, 24);
-    const rib0 = org.ribs[0];
-    const ribPart = truncate(rib0.pts, Math.max(28 / rib0.len, ribG));
-    return [...toI, ...eye.lower.slice(1), ...ribPart.slice(1)];
-  }
-
-  function tail(t, sp, ribG) {
-    const m = settle(win(t, K.tailToEye[0], K.tailToEye[1]), 0.04);
-    const root = rootPath(sp);
-    if (m <= 0) return { pts: root, root, attachedRootlets: rootlets(root), m };
-    const ep = eyePath(sp, ribG);
-    if (m >= 1) return { pts: ep, root: null, attachedRootlets: null, m };
-    // Re-laid by hand: the free end is dragged toward the eye outline.
-    // Both are resampled to the same count so the thread keeps its length logic.
-    const A = resample(root, NT), B = resample(ep, NT);
-    // Lead with the far end: the tip reaches the eye first, the rest follows.
-    const pts = A.map((p, i) => {
-      const f = i / (NT - 1);
-      const mm = clamp((m * 1.6 - (1 - f) * 0.6));
-      const e = easeInOut(mm);
-      return [lerp(p[0], B[i][0], e), lerp(p[1], B[i][1], e)];
-    });
-    return { pts, root: null, attachedRootlets: null, m };
-  }
-
   function state(t, step, orgState) {
+    const sp = orgState.sp;
     const r = route(t, step);
-    const sm = seam(orgState.sp);
-    const tl = tail(t, orgState.sp, orgState.ribState[0].g);
-    const loose = t >= K.rootDetach ? frozenRootlets : null;
-    return { route: r, seam: sm, tail: tl, looseRootlets: loose, attachedRootlets: tl.attachedRootlets };
+    // the route's far end follows the tail as the body shifts
+    const end = sp.pts[2], d = [end[0] - routeEnd[0], end[1] - routeEnd[1]];
+    const shift = (pts) => pts && pts.map((q, i) => [q[0] + d[0] * (i / (pts.length - 1)), q[1] + d[1] * (i / (pts.length - 1))]);
+    r.pts = shift(r.pts);
+    if (r.steppedPts) r.steppedPts = shift(r.steppedPts);
+    // pulling the thread back to the eye: first the root, then the seam
+    const pull = clamp(move(t, K.pull[0], K.pull[1], seed * 71));
+    const eyeOutU = org.uEye + orgState.eye.du;
+    const uEnd = pull < 0.3 ? 0.985 : lerp(0.985, eyeOutU, (pull - 0.3) / 0.7);
+    const sm = seam(sp, uEnd);
+    let root = null, attached = null;
+    if (pull < 0.3) {
+      root = rootPath(sp);
+      if (pull > 0) root = truncate(root, 1 - pull / 0.3);
+      if (t < K.rootDetach) attached = rootlets(rootPath(sp));
+    }
+    let rib0 = null;
+    if (pull >= 1 && orgState.ribState[0].g > 0) {
+      const ribPts = truncate(org.ribs[0].pts, orgState.ribState[0].g);
+      rib0 = [orgState.eye.outer, ...ribPts.slice(1)];
+    }
+    const full = [...r.pts, ...sm, ...(root || []), ...(rib0 || [])];
+    return {
+      route: r, seam: sm, holes: holes(sp, uEnd), root, rib0, full,
+      looseRootlets: t >= K.rootDetach ? frozenRootlets : null, attachedRootlets: attached, uEnd, pull,
+    };
   }
 
   return { state, entry };

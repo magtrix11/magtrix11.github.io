@@ -1,25 +1,30 @@
-// Composes one held step of the study: ground -> memory -> shadows ->
-// organism -> scanner band -> grain. Owns the stateful memory buffer.
+// Composes one held step of the study: ground -> memory (temporal anatomy)
+// -> shadows -> organism -> relief light -> scanner band -> grain.
+// Owns the stateful memory buffer.
 
-import { buildMaterials, meanColor } from './materials.js';
+import { buildMaterials, meanColor, makeInteriors } from './materials.js';
 import { createOrganism } from './organism.js';
 import { createThread } from './thread-system.js';
-import { K, FRAMES, FPS, stepTime, stepIndex, easeInOut, win, clamp } from './timeline.js';
+import { K, FRAMES, FPS, stepTime, stepIndex, win, stressAt } from './timeline.js';
 import { hash } from './rng.js';
-import { truncate, quadPts, polyline } from './draw.js';
+import { polyline } from './draw.js';
 import {
-  lightAt, drawStrip, drawGold, drawBody, drawIncisions, drawRoute, drawSeam, drawRootlets,
-  drawTail, drawLashes, drawLid, drawCell, drawNet, drawWire, membranePanel, drawMembrane,
-  silhouette, stripGeometry, setSurfaceTextures,
+  lightAt, drawStrip, drawGold, drawIncisions, drawRoute, drawSeam, drawRootlets,
+  drawCell, drawNet, silhouette, stripGeometry, setSurfaceTextures, strokeThread,
 } from './render.js';
+import {
+  drawBodyChunk, drawCreases, drawExposedSeams, drawHoles, drawCavity, cavityShape,
+  drawRib, ribPolyline, drawMembrane3, setMembraneTexture,
+} from './render3.js';
 import { compositeShadows, scanBand, grainAndFlicker, reliefAndLight } from './post-process.js';
 
 export async function createFilm(p, { W, H, seed }) {
   const k = W / 1920;
-  // Locked camera, closer than the full organism: the body is cropped by the
-  // frame at its extremes, like a macro photograph of a table.
-  const Z = 1.22, CX = 880, CY = 535;
+  // Locked overhead camera, closer than the full organism: the body is
+  // cropped by the frame at its extremes, like a macro photograph of a table.
+  const Z = 1.42, CX = 900, CY = 640;
   const VIEW = [k * Z, 0, 0, k * Z, k * CX * (1 - Z), k * CY * (1 - Z)];
+  const PX = k * Z; // design units -> screen pixels (for shadowBlur etc.)
   const mats = await buildMaterials(seed, W, H, k);
   const org = createOrganism(seed, { pinches: mats.bodyCloth.pinches || [] });
   const pw = mats.painting.width, ph = mats.painting.height;
@@ -27,6 +32,7 @@ export async function createFilm(p, { W, H, seed }) {
   const roles = org.assignRoles(meanOf);
   const means = org.strips.map((s) => meanOf(s.uv));
   const thread = createThread(seed, org);
+  const interiors = makeInteriors(seed);
   // windows of the painting closest to a target colour (for cells, membrane)
   const findWindow = (target) => {
     let best = null;
@@ -38,12 +44,14 @@ export async function createFilm(p, { W, H, seed }) {
     }
     return best;
   };
-  setSurfaceTextures(findWindow([222, 160, 70]), findWindow([228, 130, 150]));
+  const memTex = findWindow([228, 130, 150]);
+  setSurfaceTextures(findWindow([222, 160, 70]), memTex);
+  setMembraneTexture(memTex);
   const cw = mats.bodyCloth.width, chh = mats.bodyCloth.height;
   const clothMeans = Array.from({ length: 48 }, (_, i) => meanColor(mats.bodyCloth, (i / 48) * cw, chh * 0.3, cw / 48, chh * 0.4));
 
   const buf = () => { const g = p.createGraphics(W, H); g.pixelDensity(1); g.elt.style.display = 'none'; return g.elt; };
-  const memory = buf(), shadowLow = buf(), shadowLift = buf(), prev = buf(), tmp = buf(), band = buf();
+  const memory = buf(), shadowLow = buf(), shadowLift = buf(), prev = buf(), tmp = buf(), band = buf(), tint = buf();
   const mctx = memory.getContext('2d');
   const main = p.drawingContext;
 
@@ -53,37 +61,59 @@ export async function createFilm(p, { W, H, seed }) {
   let prevPhases = null;
   let lastTs = null;
 
+  // ---------------------------------------------------------------- memory
+  // The ground keeps the organism's temporal anatomy: every contour the
+  // body has had, every path the thread has taken, the face's cavities
+  // while they were aligned, stains where strips lifted away, each stage
+  // of the ribs' growth.
   const MEM = 'rgba(34,56,128,';
-
   function stamp(ts) {
     const st = org.state(ts);
-    const th = thread.state(ts, stepIndex(ts), st);
+    const step = stepIndex(ts);
+    const th = thread.state(ts, step, st);
     mctx.save();
     mctx.setTransform(...VIEW);
-    mctx.lineJoin = 'round';
-    mctx.strokeStyle = MEM + "0.06)";
+    mctx.lineJoin = 'round'; mctx.lineCap = 'round';
+    mctx.strokeStyle = MEM + '0.075)';
     mctx.lineWidth = 1.1;
     polyline(mctx, th.route.stepped ? th.route.steppedPts : th.route.pts); mctx.stroke();
-    polyline(mctx, th.tail.pts); mctx.stroke();
-    mctx.strokeStyle = MEM + '0.035)';
-    polyline(mctx, th.seam); mctx.stroke();
-    if (stepIndex(ts) % 4 === 0) {
-      mctx.strokeStyle = MEM + '0.045)';
-      mctx.lineWidth = 0.9;
+    polyline(mctx, th.full.slice(th.route.pts.length)); mctx.stroke();
+    if (step % 2 === 0) {
+      // contour residue: the body's edges, every other step
+      mctx.strokeStyle = MEM + '0.07)';
+      mctx.lineWidth = 1;
       polyline(mctx, st.sp.left); mctx.stroke();
       polyline(mctx, st.sp.right); mctx.stroke();
     }
-    // Pigment offset: a strip that lifts away leaves a stain of itself.
-    const phases = st.stripState.map((s) => s.pose.phase);
+    if (ts >= K.faceArrive[0] && ts <= K.reorg[0] + 0.6) {
+      // the face, while it is perceptible, is burned into the ground
+      mctx.strokeStyle = MEM + '0.16)';
+      mctx.lineWidth = 1.3;
+      for (const c of st.cav) {
+        if (!['eye', 'socket', 'mouth'].includes(c.id)) continue;
+        const g = cavityShape(c, org, st.sp, 12);
+        polyline(mctx, [...g.upper, ...g.lower.slice().reverse(), g.upper[0]]); mctx.stroke();
+      }
+    }
+    for (const r of st.ribState) {
+      if (r.g <= 0 || step % 2) continue;
+      mctx.strokeStyle = MEM + '0.06)';
+      polyline(mctx, ribPolyline(r, r.g, step, 0)); mctx.stroke();
+    }
+    // pigment offset: a strip that lifts away leaves a stain of itself
     if (prevPhases) {
       st.stripState.forEach((s, i) => {
         if (s.pose.phase === 'transit' && prevPhases.strip[i].phase !== 'transit') {
-          drawStrip(mctx, mats.painting, s.strip, prevPhases.strip[i].pose, means[i], { alpha: 0.22, flat: true });
+          drawStrip(mctx, mats.painting, s.strip, prevPhases.strip[i].pose, means[i], { alpha: 0.26, flat: true });
+          // and the outline of where it was: a fragment of prior geometry
+          const g = stripGeometry(s.strip, prevPhases.strip[i].pose);
+          mctx.strokeStyle = MEM + '0.3)'; mctx.lineWidth = 0.9;
+          polyline(mctx, [...g.left, ...g.right.slice().reverse(), g.left[0]]); mctx.stroke();
         }
       });
       st.cellState.forEach((c, i) => {
         if (c.phase === 'transit' && prevPhases.cell[i] === 'home') {
-          mctx.strokeStyle = 'rgba(180,110,30,0.28)'; mctx.lineWidth = 2;
+          mctx.strokeStyle = 'rgba(180,110,30,0.3)'; mctx.lineWidth = 2;
           mctx.beginPath(); mctx.arc(c.home[0], c.home[1], c.r * 0.95, 0, Math.PI * 2); mctx.stroke();
         }
       });
@@ -92,7 +122,6 @@ export async function createFilm(p, { W, H, seed }) {
       strip: st.stripState.map((s) => ({ phase: s.pose.phase, pose: s.pose })),
       cell: st.cellState.map((c) => c.phase),
     };
-    void phases;
     mctx.restore();
   }
 
@@ -110,18 +139,29 @@ export async function createFilm(p, { W, H, seed }) {
     }
   }
 
-  const ribPts = (rib, r, g, step, t) => {
-    let pts = truncate(rib.pts, g);
-    if (t > 9.3) {
-      // the finished structure trembles by a pixel at the tips
-      pts = pts.map((q, i) => {
-        const u = i / (rib.pts.length - 1);
-        const j = (hash(step, r, 5) - 0.5) * 2.4 * u * u;
-        return [q[0] + j, q[1] - j * 0.6];
-      });
+  // Memory composite. Under material stress the record separates: a red
+  // copy of the temporal anatomy slips out of register with the cobalt one.
+  function compositeMemory(stress) {
+    main.save();
+    main.setTransform(1, 0, 0, 1, 0, 0);
+    main.globalCompositeOperation = 'multiply';
+    main.drawImage(memory, 0, 0);
+    if (stress > 0.02) {
+      const tc = tint.getContext('2d');
+      tc.setTransform(1, 0, 0, 1, 0, 0);
+      tc.globalCompositeOperation = 'source-over';
+      tc.clearRect(0, 0, W, H);
+      tc.drawImage(memory, 0, 0);
+      tc.globalCompositeOperation = 'source-in';
+      tc.fillStyle = 'rgb(190,40,50)';
+      tc.fillRect(0, 0, W, H);
+      main.globalAlpha = 0.9 * stress;
+      main.drawImage(tint, 7 * k * stress, -3 * k * stress);
+      main.globalAlpha = 0.6 * stress;
+      main.drawImage(memory, -5 * k * stress, 4 * k * stress);
     }
-    return pts;
-  };
+    main.restore();
+  }
 
   function renderAt(t) {
     const ts = stepTime(Math.min(t, 10 - 1e-6));
@@ -133,104 +173,98 @@ export async function createFilm(p, { W, H, seed }) {
     const st = org.state(ts);
     const th = thread.state(ts, step, st);
     const light = lightAt(ts);
-    const eye = org.eye;
-
-    // Rib and membrane geometry for this step.
-    const ribs = st.ribState.map((r, i) => ({ r: i, pts: r.g > 0 ? ribPts(r, i, r.g, step, ts) : [], g: r.g, full: r.pts }));
-    const opp = st.ribOppState.map((r, i) => ({ pts: r.g > 0 ? truncate(r.pts, r.g) : [] }));
-    const exts = [0.8, 0.72, 0.64, 0.74, 0.56];
-    const panels = [];
-    for (let r = 0; r < 5; r++) {
-      const e0 = easeInOut(win(ts, K.membrane[0] + 0.24 * r, K.membrane[0] + 0.24 * r + 1.2));
-      const e = e0 >= 1 ? 1 : Math.floor(e0 * 6) / 6;
-      const mA = Math.min(ribs[r].g, e * exts[r]), mB = Math.min(ribs[r + 1].g, e * exts[r] * 0.9);
-      if (mA > 0.03 && mB > 0.03) panels.push({ r, panel: membranePanel(ribs[r].full, ribs[r + 1].full, mA, mB, seed + r) });
-    }
-    const crosses = st.crossWires.map((cw) => {
-      const f = clamp((ts - cw.start) / 0.35);
-      if (f <= 0 || ribs[cw.r].g < cw.ua || ribs[cw.r + 1].g < cw.ub) return null;
-      const pa = ribs[cw.r].full[Math.round(cw.ua * 44)], pb = ribs[cw.r + 1].full[Math.round(cw.ub * 44)];
-      const mid = [(pa[0] + pb[0]) / 2 + 6, (pa[1] + pb[1]) / 2 + 10];
-      return truncate(quadPts(pa, mid, pb, 12), f >= 1 ? 1 : Math.floor(f * 4) / 4);
-    }).filter(Boolean);
-
+    const stress = stressAt(ts);
+    const tremble = win(ts, K.tremble[0], K.tremble[0] + 0.3);
+    const sp = st.sp;
+    const N = sp.pts.length - 1;
     const strips = st.stripState;
-    const byPhase = (ph) => strips.filter((s) => s.pose.phase === ph);
-    const lidS = strips[roles.lid];
     const cells = st.cellState;
+    const byPhase = (ph) => strips.filter((s) => s.pose.phase === ph);
 
-    // ---------------- shadows
+    // ---------------- shadows (ground contact)
     const sl = shadowLow.getContext('2d'), sh = shadowLift.getContext('2d');
     for (const c of [sl, sh]) { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H); c.setTransform(...VIEW); c.lineCap = 'round'; }
-    silhouette(sl, { ribbon: [st.sp.left, st.sp.right] });
+    silhouette(sl, { ribbon: [sp.left, sp.right] });
     silhouette(sl, { line: th.route.pts, w: 2.2 });
-    silhouette(sl, { line: th.tail.pts, w: 2.4 });
     for (const s of strips) {
       const g = stripGeometry(s.strip, s.pose);
       silhouette(s.pose.lift > 0.05 ? sh : sl, { ribbon: [g.left, g.right] });
     }
     for (const c of cells) silhouette(c.lift > 0.05 ? sh : sl, { circle: [c.pos[0], c.pos[1], c.r] });
-    for (const r of ribs) if (r.pts.length > 1) silhouette(sl, { line: r.pts, w: 3 });
-    for (const r of opp) if (r.pts.length > 1) silhouette(sl, { line: r.pts, w: 3 });
-    sl.globalAlpha = 0.3;
-    for (const pn of panels) silhouette(sl, { poly: pn.panel.poly });
-    sl.globalAlpha = 1;
+    for (const r of st.ribState) if (r.g > 0) silhouette(sl, { line: ribPolyline(r, r.g, step, tremble), w: r.w + 1 });
 
-    // ---------------- ground, memory, shadows
+    // ---------------- ground, temporal anatomy, shadows
     main.save();
     main.setTransform(1, 0, 0, 1, 0, 0);
     main.globalCompositeOperation = 'source-over';
     main.drawImage(mats.ground, 0, 0, W, H);
-    main.globalCompositeOperation = 'multiply';
-    main.drawImage(memory, 0, 0);
     main.restore();
-    compositeShadows(main, shadowLow, shadowLift, light, k * Z);
+    compositeMemory(stress);
+    compositeShadows(main, shadowLow, shadowLift, light, PX);
 
-    // ---------------- organism
     main.save();
     main.setTransform(...VIEW);
-    const jitter = [(hash(step, 11) - 0.5) * 0.9, (hash(step, 12) - 0.5) * 0.9];
+
+    // the thread's delayed path: where it was half a second ago
+    if (ts > 0.5) {
+      const tsD = stepTime(ts - 0.5);
+      const stD = org.state(tsD);
+      const thD = thread.state(tsD, stepIndex(tsD), stD);
+      main.save();
+      main.strokeStyle = `rgba(40,70,165,${0.32 + 0.3 * stress})`; main.lineWidth = 1.3;
+      main.translate(2 + 4 * stress, 1.5);
+      polyline(main, thD.full); main.stroke();
+      main.restore();
+    }
 
     drawRoute(main, th.route);
     if (th.looseRootlets) drawRootlets(main, th.looseRootlets, true);
 
-    main.save();
-    main.translate(jitter[0], jitter[1]); // re-placed by hand each step
-    drawBody(main, mats.bodyCloth, st.sp, clothMeans);
-    drawIncisions(main, org, st.sp, ts, st.incisions);
-    drawSeam(main, th.seam);
-    for (const s of byPhase('body')) drawStrip(main, mats.painting, s.strip, s.pose, means[s.strip.id]);
-    main.restore();
+    // ribs that start under the cloth are laid first
+    for (const r of st.ribState) if (r.under && r.g > 0) drawRib(main, r, r.g, step, tremble);
 
     const home = cells.filter((c) => c.phase === 'home');
     for (const c of home) drawCell(main, c, c.pos);
     drawNet(main, st.net, cells);
 
-    // face parts
-    for (const c of cells) if (c.phase === 'placed' && c.role.kind !== 'joint') drawCell(main, c, c.pos);
-    const faceOrder = ['mouth', 'cover', 'cheek', 'ring'];
-    for (const kind of faceOrder) {
-      const s = strips.find((x) => x.strip.role.kind === kind && x.pose.phase === 'face');
-      if (s) drawStrip(main, mats.painting, s.strip, s.pose, means[s.strip.id]);
+    // ---------------- the body, layer by layer along its length
+    const iris = cells.find((c) => c.role && c.role.kind === 'iris');
+    const chunk = 10;
+    const jitter = [(hash(step, 11) - 0.5) * 0.9, (hash(step, 12) - 0.5) * 0.9];
+    main.save();
+    main.translate(jitter[0], jitter[1]); // re-placed by hand each step
+    for (let i0 = 0; i0 < N; i0 += chunk) {
+      const i1 = Math.min(N, i0 + chunk);
+      const u0 = i0 / N, u1 = i1 / N;
+      drawBodyChunk(main, mats.bodyCloth, sp, i0, i1, clothMeans, light, PX);
+      drawCreases(main, org, sp, i0, i1, light);
+      drawExposedSeams(main, org, sp, i0, i1);
+      drawIncisions(main, org, sp, ts, st.incisions.filter((g) => g.u >= u0 && g.u < u1));
+      for (const c of st.cav) {
+        if (c.u < u0 || c.u >= u1) continue;
+        drawCavity(main, c, org, sp, interiors, {
+          px: PX, lidClose: st.lidClose,
+          inside: c.id === 'eye' && iris && iris.phase === 'placed' ? () => drawCell(main, iris, iris.pos, 0.82) : null,
+        });
+      }
+      // running stitch for this stretch of seam
+      const s0 = Math.max(0, i0 - 2), s1 = Math.min(th.seam.length, i1 - 1);
+      if (s1 - s0 > 1) drawSeam(main, th.seam.slice(s0, s1));
+      drawHoles(main, th.holes, i0, i1);
+      for (const s of byPhase('body')) if (s.strip.s >= u0 && s.strip.s < u1) drawStrip(main, mats.painting, s.strip, s.pose, means[s.strip.id]);
     }
-    if (ts >= 5.2) {
-      // the second eye is already shut: a short red running stitch over it
-      main.save();
-      main.strokeStyle = '#a3342b'; main.lineWidth = 1.8; main.lineCap = 'round';
-      main.setLineDash([6, 4]);
-      polyline(main, org.eye2.arc); main.stroke();
-      main.restore();
-    }
-    if (lidS.pose.phase === 'face') drawLid(main, mats.painting, lidS.strip, eye, st.lidClose, means[lidS.strip.id]);
-    drawTail(main, th.tail);
-    if (th.attachedRootlets) drawRootlets(main, th.attachedRootlets, false);
-    drawLashes(main, eye, st.lidClose);
+    main.restore();
 
-    // wing
-    for (const pn of panels) drawMembrane(main, mats.painting, pn.panel, pn.r);
-    ribs.forEach((r, i) => { if (r.pts.length > 1 && i > 0) drawWire(main, r.pts, false, seed + i); });
-    opp.forEach((r, i) => { if (r.pts.length > 1) drawWire(main, r.pts, false, seed + 40 + i); });
-    crosses.forEach((c, i) => drawWire(main, c, false, seed + 60 + i));
+    // root (until the thread is drawn back) and its rootlets
+    if (th.root) strokeThread(main, th.root, 2);
+    if (th.attachedRootlets) drawRootlets(main, th.attachedRootlets, false);
+
+    // ---------------- membranes, ribs, cladding
+    st.membranes.forEach((m, i) => drawMembrane3(main, mats.painting, m, i, org, sp, st.ribState, step, tremble));
+    for (const r of st.ribState) if (!r.under && r.g > 0) {
+      if (r.thread) { if (th.rib0) strokeThread(main, th.rib0, r.w); }
+      else drawRib(main, r, r.g, step, tremble);
+    }
     for (const s of byPhase('rib')) drawStrip(main, mats.painting, s.strip, s.pose, means[s.strip.id]);
     for (const c of cells) if (c.phase === 'placed' && c.role.kind === 'joint') drawCell(main, c, c.pos, 0.62);
     for (const s of strips) if (s.strip.gold && s.pose.phase !== 'transit') drawGold(main, s.strip.gold, s.pose, ts);
@@ -254,5 +288,5 @@ export async function createFilm(p, { W, H, seed }) {
     prev.hasFrame = true;
   }
 
-  return { renderAt, info: { seed, W, H, scans: mats.scans, roles } };
+  return { renderAt, info: { seed, W, H, scans: mats.scans, roles, face: org.faceUs } };
 }

@@ -1,5 +1,61 @@
 # Study 01: Review against the mood board
 
+## Revision 3: "keep the system, recompose the organism"
+
+**Files:**
+
+| | Path |
+|---|---|
+| Revision 3 movie | `output/study01/study01_1080.mp4` |
+| Revision 3 key frames | `output/study01/keyframes/` (17 frames) |
+| Revision 3 contact sheet | `output/study01/contact_sheet.jpg` |
+| A/B comparison | `output/study01/ab_rev2_vs_rev3.jpg` (17 matching timestamps) |
+| Revision 2, preserved | `output/study01_rev2/`, and git tag `study01-rev2` |
+
+**Kept:** the 10 s deterministic timeline (seed 1127), the export system, Toni's paint as the material, one unbroken thread, the persistence rule, the cobalt memory, the palette, and the pale ground.
+
+### Was each named problem actually resolved?
+
+| Problem | Verdict | Evidence |
+|---|---|---|
+| **Worm / caterpillar** | **Mostly resolved.** | The body is no longer a tube of even width (f000–f048). It has a broad flattened plane in the middle, one-sided bites out of its silhouette, a pinched wound-yarn waist, open tears with flaps of skin lifted back, exposed seams, and scraps hanging off its edge. The two sides have different widths, so the weight is asymmetrical. **Still wrong:** it is still one long diagonal mass from lower left to upper right, so in the first second it can read as a fat sea slug. The tail (lower left) is the most worm-like part. |
+| **Clean spiral / numeral 9** | **Resolved.** | There is no circular coil (A/B rows f096–f239). The body folds back on itself into a flattened chamber with a slot-shaped inner cavity. Different regions fold at different times. Painted passages from the opening are recognisable in the knot. **New risk:** from about 7 s the right half of the chamber is a large smooth dome. At thumbnail size it can read as a shell or a helmet. |
+| **Graphic eye** | **Resolved, with one caveat.** | No eye is drawn. The face is two tears in the painted skin, one dark and one cobalt-lined, plus a red slit lower down. The fold brings them into line (f096–f132), and an ochre cell slides into one tear. At f108–f120 it reads as a mask or face, uncanny rather than illustrated. It then comes apart. The cavity is stitched shut by the thread (f144). Afterwards it survives as a stitched seam, as cobalt contour residue on the ground, and as the dark tear that stays open. **Caveat:** the dark socket is a near-black hole with a clean outline. It is the most "graphic" element of the face and could use a real torn edge (a scan). |
+| **Prayer flags / tags** | **Partly resolved.** | Strips now migrate in uneven bunches: six on one rib near its root, three or four elsewhere, one alone. They fold, overlap and snag, and a few hang. **Still wrong:** individually they are still clean rectangles, and the few lone strips far out on the ribs (f228–f239) still read as tags. Real fabric scans with irregular cut edges are needed. |
+| **Evenly curved ribs** | **Resolved.** | Seven ribs, all different in origin, length, weight and curvature. Two have hard kinks, two split, two start under the cloth, and two never finish growing. They grow in stepped pieces, with their own hesitations. **Still wrong:** each rib is a single line with constant thickness per segment. They read as wire, never as bone or cartilage. |
+| **Digitally filled membrane** | **Partly resolved.** | The membrane is now sewn to the ribs at stitched attachment points. It has sagging free edges, holes, a gauze weave, tension lines between attachments, uneven stains, and it is paler toward its free edge. Each of the four pieces has different tension. **Still wrong:** the main lateral membrane is still a large flat-coloured pink polygon at a glance (f216–f239). Its edges are too straight between attachment points, and it reads more "filled" than "stretched". This is the weakest part of Revision 3. |
+
+### Other changes
+
+- **Choreography:**
+  - The body is alive from frame 0: uneven pressure travelling along it, and slow turning.
+  - The fold runs 1.5–3.6 s. The face is perceptible about 3.9–5.5 s, which is more than 1 s. The face breaks and the eye is stitched shut 5.5–7.2 s. The ribs and membrane form 7.2–10 s.
+  - Every element uses its own seeded easing, with hesitation plateaus and different overshoots, rather than one shared curve.
+  - The ending trembles rather than resolving.
+- **Material depth:**
+  - The cylindrical body shading is gone.
+  - Depth now comes from the body drawn as overlapping layers that shadow each other. There are also creases that deepen where the body bends, lit and shadowed lifted edges, seams, needle holes left where the thread was pulled out, and the relief pass.
+  - The ground has pressure marks, tide-line stains, pigment ghosts, scratches and fibres.
+- **Digital layer:**
+  - The memory now keeps contour residue every other step, the thread's full path, the face's cavities while they are aligned, each stage of rib growth, and the outlines of where strips lay.
+  - A delayed copy of the thread (0.5 s behind) is drawn in cobalt.
+  - At three moments of stress (fold, face break, membrane) the record splits into red and cobalt copies out of register, and the scanner band passes.
+
+### What still looks like generic creative coding
+
+1. **The memory traces at the right of the frame.** The bundle of parallel offset cobalt lines (the route and contour residue) reads as a vector "echo" effect. It is the most software-looking thing in the frame. It should be sparser, broken, and carry pressure variation, like pencil.
+2. **The ochre cell cluster** (lower left) is still a procedural berry bunch.
+3. **The membrane's flat fill** (see above).
+4. **Uniform fringe hairs** along every edge, all the same length and density.
+5. **The scanner band** is still a clean horizontal rectangle when it passes.
+
+### What would most improve Revision 4
+
+Scans of one cut-and-sewn painted canvas fragment, sheer pink fabric, and a torn edge. These would fix the tags, the membrane and the socket more than any further procedural work.
+
+---
+
+
 ## Revision 2 (after Toni's feedback: "too cartoony")
 
 **What changed:**

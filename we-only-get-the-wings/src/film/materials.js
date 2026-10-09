@@ -399,9 +399,75 @@ function makeGround(seed, PW, PH, K) {
     }
     ctx.stroke();
   }
+  // Revision 3: the ground is gessoed cloth that has been used — stains,
+  // pressure marks, pigment ghosts, scratches, loose fibres.
+  for (let i = 0; i < 9; i++) {
+    // pressure marks: something heavy rested here
+    ctx.save();
+    ctx.filter = 'blur(14px)';
+    ctx.fillStyle = `rgba(110,112,120,${rnd.range(0.05, 0.1)})`;
+    ctx.beginPath();
+    const x = rnd.range(0, W), y = rnd.range(0, H), r = rnd.range(60, 200);
+    for (let j = 0; j <= 9; j++) {
+      const a = (j / 9) * Math.PI * 2, rr = r * rnd.range(0.6, 1.1);
+      j ? ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.7) : ctx.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.7);
+    }
+    ctx.fill();
+    ctx.restore();
+  }
+  for (let i = 0; i < 11; i++) {
+    // dried stains with darker tide lines
+    const x = rnd.range(0, W), y = rnd.range(0, H), r = rnd.range(20, 90);
+    const col = rnd.pick(['120,100,90', '90,100,130', '140,90,90', '130,115,80']);
+    ctx.fillStyle = `rgba(${col},${rnd.range(0.025, 0.05)})`;
+    ctx.strokeStyle = `rgba(${col},${rnd.range(0.08, 0.16)})`;
+    ctx.lineWidth = rnd.range(1, 3);
+    ctx.beginPath();
+    ctx.ellipse(x, y, r, r * rnd.range(0.6, 1), rnd.range(0, 3), 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+  }
+  for (let i = 0; i < 7; i++) {
+    // pigment ghosts: faint transfers of the painting's colours
+    bristleStroke(ctx, rnd,
+      gesturePath(rnd, rnd.range(0, W), rnd.range(0, H), rnd.range(40, 160), rnd.range(0, Math.PI * 2), rnd.range(-0.6, 0.6)),
+      rnd.range(14, 36), rnd.pick([PAL.cobalt, PAL.red, PAL.ochre, PAL.plum, PAL.leaf]), rnd.range(0.05, 0.1));
+  }
+  for (let i = 0; i < 60; i++) {
+    // scratches: a light cut with a darker shoulder
+    const x = rnd.range(0, W), y = rnd.range(0, H), a = rnd.range(0, Math.PI), l = rnd.range(14, 120);
+    ctx.strokeStyle = `rgba(250,250,248,${rnd.range(0.2, 0.45)})`; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
+    ctx.strokeStyle = `rgba(80,82,92,${rnd.range(0.08, 0.18)})`;
+    ctx.beginPath(); ctx.moveTo(x + 0.9, y + 0.9); ctx.lineTo(x + Math.cos(a) * l + 0.9, y + Math.sin(a) * l + 0.9); ctx.stroke();
+  }
+  for (let i = 0; i < 260; i++) {
+    // loose fibres
+    let x = rnd.range(0, W), y = rnd.range(0, H), a = rnd.range(0, Math.PI * 2);
+    ctx.strokeStyle = rnd.next() < 0.75 ? `rgba(120,120,128,${rnd.range(0.15, 0.35)})` : rgba(rnd.pick([PAL.cobalt, PAL.red, PAL.ochre]), rnd.range(0.2, 0.4));
+    ctx.lineWidth = rnd.range(0.4, 0.8);
+    ctx.beginPath(); ctx.moveTo(x, y);
+    const n = rnd.int(3, 9);
+    for (let j = 0; j < n; j++) { a += rnd.range(-0.9, 0.9); x += Math.cos(a) * 3; y += Math.sin(a) * 3; ctx.lineTo(x, y); }
+    ctx.stroke();
+  }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  weaveTooth(ctx, c.width, c.height, rnd, 0.035, Math.max(2, Math.round(3 * K)));
+  weaveTooth(ctx, c.width, c.height, rnd, 0.06, Math.max(2, Math.round(3 * K)));
   return c;
+}
+
+// What lies under the painted skin where it opens (cavities, tears).
+export function makeInteriors(seed) {
+  const rnd = makeRandom(seed ^ 0x1e7);
+  const make = (kind) => {
+    const c = canvas(200, 90);
+    const ctx = c.getContext('2d');
+    if (kind === 'dark') {
+      ctx.fillStyle = '#2b1a20'; ctx.fillRect(0, 0, 200, 90);
+      for (let i = 0; i < 300; i++) { ctx.fillStyle = `rgba(120,70,80,${rnd.range(0.05, 0.2)})`; ctx.fillRect(rnd.range(0, 200), rnd.range(0, 90), 2, 1); }
+    } else clothPatch(ctx, rnd, kind, 0, 200, 90, 1);
+    return c;
+  };
+  return { cobalt: make('denim'), red: make('oxblood'), yarn: make('wound'), muslin: make('muslin'), dark: make('dark'), ochre: make('ochre') };
 }
 
 function makeGrain(seed, size) {
@@ -483,14 +549,24 @@ function makeBodyFromPainting(painting, seed, S) {
     ctx.fillStyle = g;
     ctx.fillRect(px - w, 0, 2 * w, H);
   }
+  // Revision 3: no cylindrical shading — only the cut edges darken; volume
+  // comes from uneven stuffing pressure (blotches), creases and the relief pass.
   const sh = ctx.createLinearGradient(0, 0, 0, H);
-  sh.addColorStop(0.0, 'rgba(30,10,15,0.45)');
-  sh.addColorStop(0.15, 'rgba(30,10,15,0.08)');
-  sh.addColorStop(0.5, 'rgba(30,10,15,0)');
-  sh.addColorStop(0.85, 'rgba(30,10,15,0.18)');
-  sh.addColorStop(1.0, 'rgba(25,5,10,0.55)');
+  sh.addColorStop(0.0, 'rgba(30,10,15,0.3)');
+  sh.addColorStop(0.07, 'rgba(30,10,15,0.04)');
+  sh.addColorStop(0.93, 'rgba(30,10,15,0.06)');
+  sh.addColorStop(1.0, 'rgba(25,5,10,0.34)');
   ctx.fillStyle = sh;
   ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 60; i++) {
+    const x = rnd.range(0, W), y = rnd.range(0, H), r = rnd.range(14, 60);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    const dark = rnd.next() < 0.6;
+    g.addColorStop(0, dark ? `rgba(30,10,15,${rnd.range(0.08, 0.2)})` : `rgba(255,245,235,${rnd.range(0.05, 0.14)})`);
+    g.addColorStop(1, 'rgba(30,10,15,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, 2 * r, 2 * r);
+  }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   weaveTooth(ctx, c.width, c.height, rnd, 0.05, Math.max(2, Math.round(2 * S)));
   c.pinches = pinches;
