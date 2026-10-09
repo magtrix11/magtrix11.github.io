@@ -1,6 +1,6 @@
 # Running and exporting Study 01
 
-This is a 10-second study (240 frames, 24 fps), animated on twos at 12 held steps per second. It is deterministic from its seed.
+This is an 11-second study (264 frames, 24 fps), animated on twos at 12 held steps per second. It is deterministic from its seed.
 
 | | |
 |---|---|
@@ -44,8 +44,8 @@ The current frame number is shown in the browser tab title, outside the frame. L
 ## 4. Render frames (frame-exact, headless)
 
 ```bash
-npm run render                        # 240 PNGs at 1920x1080 -> renders/study01_1080/frames/f_000.png …
-npm run render:4k                     # 240 PNGs at 3840x2160 -> renders/study01_4k/frames/
+npm run render                        # 264 PNGs at 1920x1080 -> renders/study01_1080/frames/f_000.png …
+npm run render:4k                     # 264 PNGs at 3840x2160 -> renders/study01_4k/frames/
 node scripts/render.mjs --frames 0,120,239 --out renders/check   # selected frames only
 node scripts/render.mjs --seed 42 --out renders/seed42           # a different seed
 ```
@@ -56,7 +56,7 @@ Rendering takes about 0.35 s per frame at 1080p and about 1–2 s per frame at 4
 
 **How capture works:** `scripts/render.mjs` starts Vite and opens the page with `?capture=1`. It then calls `window.__film.renderFrame(n)` for each frame and saves the canvas.
 
-**Determinism:** any single frame rendered on its own is pixel-identical to the same frame in a full sequential run. The ground's memory buffer is rebuilt by replaying every earlier held step. The one exception is the scanner band, which shows the *previous* frame. Inside the three scan windows (3.35–3.9 s, 6.85–7.4 s, 8.35–8.9 s), render sequentially.
+**Determinism:** any single frame rendered on its own is pixel-identical to the same frame in a full sequential run. The ground's memory buffer is rebuilt by replaying every earlier held step. The one exception is the scanner band, which shows the *previous* frame. Inside the three scan windows, render sequentially.
 
 ## 5. Key frames, contact sheet, movie
 
@@ -70,7 +70,7 @@ Outputs:
 
 - `output/study01/keyframes/kf_<frame>_<seconds>s.jpg`: 9 full-resolution key frames.
 - `output/study01/contact_sheet.jpg`: labelled review sheet. The labels appear only on the sheet, never on frames.
-- `output/study01/study01_1080.mp4`: H.264, CRF 23, BT.709.
+- `output/study01/study01_1080.mp4`: H.264, CRF 23, BT.709, 11 s.
 
 ## 6. Replacing placeholders with Toni's scans
 

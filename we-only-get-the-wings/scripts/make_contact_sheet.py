@@ -18,13 +18,13 @@ from PIL import Image, ImageDraw, ImageFont
 KEYFRAMES = [
     (0, "organism at rest; thread as route, seam, root"),
     (66, "route snaps to an orthogonal data path"),
-    (84, "scanner band; tail settling, route pulled taut"),
     (108, "front of the body rolls up from its tip"),
-    (150, "eye from cell, cobalt ring, thread; lid descending"),
-    (165, "eyelid closed along the thread's seam"),
-    (190, "seam continues past the corner: first rib"),
-    (214, "membrane between ribs; gold catches light"),
-    (239, "final: rib/fan/membrane rooted in the eye"),
+    (144, "camera moves in: the eye is open, looking back"),
+    (168, "the painted lid comes down; stitches appear"),
+    (190, "eye held shut along the thread's seam"),
+    (212, "seam continues past the corner: first rib"),
+    (242, "membrane between ribs; gold catches light"),
+    (263, "final: rib/fan/membrane rooted in the closed eye"),
 ]
 
 

@@ -235,7 +235,8 @@ export function createOrganism(seed, opts = {}) {
         used.add(i); return i;
       }
     };
-    const lid = take(score(([r, g, b]) => (r + g + b) / 3 + (r - g) * 0.4 - Math.abs(g - b) * 0.3));
+    // the eyelid: the most pink/coral fragment, so the closing reads clearly
+    const lid = take(score(([r, g, b]) => r - g * 1.1 + b * 0.35 + (r + g + b) / 12));
     const mouth = take(score(([r, g, b]) => r - (g + b) * 0.6));
     const ring = take(score(([r, g, b]) => b - (r + g) * 0.5));
     const cover = take(score(([r, g, b]) => b - r * 0.7));

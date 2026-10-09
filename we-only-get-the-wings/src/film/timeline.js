@@ -1,11 +1,15 @@
-// The study's clock. One continuous 10 s transformation, master 24 fps,
+// The study's clock. One continuous 11 s transformation, master 24 fps,
 // animated on "twos" (12 held steps per second) like stop motion; the
 // eyelid closure drops to 8 steps per second.
+//
+// Two clocks: real time t (frames) and story time τ (what the organism is
+// doing). warp(t) slows the story around the eye so it is seen open, then
+// closes slowly, then holds shut before the wing begins.
 
 export const SEED_DEFAULT = 1127;
-export const DURATION = 10;
+export const DURATION = 11;
 export const FPS = 24;
-export const FRAMES = DURATION * FPS; // 240
+export const FRAMES = DURATION * FPS; // 264
 
 export const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -43,9 +47,26 @@ export const K = {
   scans: [3.35, 6.85, 8.35],   // scanner-band events (start times)
 };
 
-// Quantise continuous time to the held-step grid.
+// Real-time windows around the eye.
+export const EYE = {
+  openHold: [5.3, 6.3],   // eye open, story slowed to 0.4x
+  closing: [6.3, 7.8],    // lid closes (story 5.7 -> 6.7)
+  closedHold: [7.8, 8.3], // held shut
+  camIn: [4.7, 6.0],      // camera moves in on the eye
+  camOut: [8.2, 9.3],     // and back out as the rib grows
+};
+const WARP = [[0, 0], [5.3, 5.3], [6.3, 5.7], [7.8, 6.7], [8.3, 6.75], [11, 10]];
+export function warp(t) {
+  for (let i = 1; i < WARP.length; i++) {
+    const [t0, s0] = WARP[i - 1], [t1, s1] = WARP[i];
+    if (t <= t1) return s0 + (s1 - s0) * ((t - t0) / (t1 - t0));
+  }
+  return 10;
+}
+
+// Quantise continuous (real) time to the held-step grid.
 export function stepTime(t) {
-  const rate = t >= K.lidClose[0] && t < K.lidClose[1] ? 8 : 12;
+  const rate = t >= EYE.closing[0] && t < EYE.closing[1] ? 8 : 12;
   return Math.floor(t * rate + 1e-6) / rate;
 }
 // Integer step index (unique per held image) for hashing jitter.

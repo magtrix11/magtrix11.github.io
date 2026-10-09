@@ -4,7 +4,7 @@
 import { buildMaterials, meanColor } from './materials.js';
 import { createOrganism } from './organism.js';
 import { createThread } from './thread-system.js';
-import { K, FRAMES, FPS, stepTime, stepIndex, easeInOut, win, clamp } from './timeline.js';
+import { K, FRAMES, FPS, DURATION, EYE, warp, stepTime, stepIndex, easeInOut, win, clamp, lerp } from './timeline.js';
 import { hash } from './rng.js';
 import { truncate, quadPts, polyline } from './draw.js';
 import {
@@ -16,10 +16,22 @@ import { compositeShadows, scanBand, grainAndFlicker, reliefAndLight } from './p
 
 export async function createFilm(p, { W, H, seed }) {
   const k = W / 1920;
-  // Locked camera, closer than the full organism: the body is cropped by the
-  // frame at its extremes, like a macro photograph of a table.
-  const Z = 1.22, CX = 880, CY = 535;
-  const VIEW = [k * Z, 0, 0, k * Z, k * CX * (1 - Z), k * CY * (1 - Z)];
+  // Camera: closer than the full organism (the body is cropped by the frame,
+  // like a macro photograph of a table). It moves in on the eye while the
+  // eye is open and closing, holds, then draws back as the rib grows.
+  // The world point `c` is placed at screen point `S`, scaled by `Z`.
+  let Z = 1.22, VIEW = null, WORLD = null;
+  function setCamera(rt, eyeAt) {
+    const zin = easeInOut(win(rt, EYE.camIn[0], EYE.camIn[1]));
+    const zout = easeInOut(win(rt, EYE.camOut[0], EYE.camOut[1]));
+    const f = zin * (1 - zout);
+    Z = lerp(1.22, 1.95, f);
+    const c = [lerp(880, eyeAt[0], f), lerp(535, eyeAt[1] + 8, f)];
+    const S = [lerp(880, 960, f), lerp(535, 540, f)];
+    const ex = k * (S[0] - c[0] * Z), ey = k * (S[1] - c[1] * Z);
+    VIEW = [k * Z, 0, 0, k * Z, ex, ey];   // design units -> screen pixels
+    WORLD = [Z, 0, 0, Z, ex, ey];          // world-pixel buffers -> screen pixels
+  }
   const mats = await buildMaterials(seed, W, H, k);
   const org = createOrganism(seed, { pinches: mats.bodyCloth.pinches || [] });
   const pw = mats.painting.width, ph = mats.painting.height;
@@ -55,11 +67,14 @@ export async function createFilm(p, { W, H, seed }) {
 
   const MEM = 'rgba(34,56,128,';
 
-  function stamp(ts) {
+  // The memory buffer lives in world space (it is the table's surface), so it
+  // stays put under the moving camera.
+  function stamp(rt) {
+    const ts = warp(rt);
     const st = org.state(ts);
-    const th = thread.state(ts, stepIndex(ts), st);
+    const th = thread.state(ts, stepIndex(rt), st);
     mctx.save();
-    mctx.setTransform(...VIEW);
+    mctx.setTransform(k, 0, 0, k, 0, 0);
     mctx.lineJoin = 'round';
     mctx.strokeStyle = MEM + "0.06)";
     mctx.lineWidth = 1.1;
@@ -67,7 +82,7 @@ export async function createFilm(p, { W, H, seed }) {
     polyline(mctx, th.tail.pts); mctx.stroke();
     mctx.strokeStyle = MEM + '0.035)';
     polyline(mctx, th.seam); mctx.stroke();
-    if (stepIndex(ts) % 4 === 0) {
+    if (stepIndex(rt) % 4 === 0) {
       mctx.strokeStyle = MEM + '0.045)';
       mctx.lineWidth = 0.9;
       polyline(mctx, st.sp.left); mctx.stroke();
@@ -124,11 +139,13 @@ export async function createFilm(p, { W, H, seed }) {
   };
 
   function renderAt(t) {
-    const ts = stepTime(Math.min(t, 10 - 1e-6));
-    if (ts === lastTs) return;
-    lastTs = ts;
-    const step = stepIndex(ts);
-    updateMemory(ts);
+    const rt = stepTime(Math.min(t, DURATION - 1e-6));
+    if (rt === lastTs) return;
+    lastTs = rt;
+    const step = stepIndex(rt);
+    updateMemory(rt);
+    const ts = warp(rt);
+    setCamera(rt, org.eye.E1);
 
     const st = org.state(ts);
     const th = thread.state(ts, step, st);
@@ -180,6 +197,7 @@ export async function createFilm(p, { W, H, seed }) {
     main.save();
     main.setTransform(1, 0, 0, 1, 0, 0);
     main.globalCompositeOperation = 'source-over';
+    main.setTransform(...WORLD);
     main.drawImage(mats.ground, 0, 0, W, H);
     main.globalCompositeOperation = 'multiply';
     main.drawImage(memory, 0, 0);
@@ -207,7 +225,20 @@ export async function createFilm(p, { W, H, seed }) {
     drawNet(main, st.net, cells);
 
     // face parts
-    for (const c of cells) if (c.phase === 'placed' && c.role.kind !== 'joint') drawCell(main, c, c.pos);
+    for (const c of cells) if (c.phase === 'placed' && c.role.kind !== 'joint') {
+      drawCell(main, c, c.pos);
+      if (c.role.kind === 'iris') {
+        // the iris cell is pierced (P25's hammered disc with a hole): a dark
+        // pupil with a wet rim, so the open eye looks back
+        const [x, y] = c.pos;
+        main.save();
+        main.fillStyle = 'rgba(28,12,14,0.92)';
+        main.beginPath(); main.ellipse(x + 1, y + 1, c.r * 0.36, c.r * 0.4, 0.2, 0, Math.PI * 2); main.fill();
+        main.fillStyle = 'rgba(255,245,225,0.75)';
+        main.beginPath(); main.arc(x - c.r * 0.12, y - c.r * 0.16, c.r * 0.08, 0, Math.PI * 2); main.fill();
+        main.restore();
+      }
+    }
     const faceOrder = ['mouth', 'cover', 'cheek', 'ring'];
     for (const kind of faceOrder) {
       const s = strips.find((x) => x.strip.role.kind === kind && x.pose.phase === 'face');
@@ -221,10 +252,11 @@ export async function createFilm(p, { W, H, seed }) {
       polyline(main, org.eye2.arc); main.stroke();
       main.restore();
     }
-    if (lidS.pose.phase === 'face') drawLid(main, mats.painting, lidS.strip, eye, st.lidClose, means[lidS.strip.id]);
+    let lidEdge = null;
+    if (lidS.pose.phase === 'face') lidEdge = drawLid(main, mats.painting, lidS.strip, eye, st.lidClose, means[lidS.strip.id]);
     drawTail(main, th.tail);
     if (th.attachedRootlets) drawRootlets(main, th.attachedRootlets, false);
-    drawLashes(main, eye, st.lidClose);
+    drawLashes(main, lidEdge, st.lidClose);
 
     // wing
     for (const pn of panels) drawMembrane(main, mats.painting, pn.panel, pn.r);
