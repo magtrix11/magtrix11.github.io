@@ -334,29 +334,19 @@ export function drawRootlets(ctx, list, loose) {
 export function drawTail(ctx, tail) { strokeThread(ctx, tail.pts, 2.1); }
 
 // Lashes: the thread stitching the closed lid to the lower lid.
-// The lid's free edge is stitched as it comes down: the thread runs along
-// the edge and short stitches (lashes) appear across it, left to right,
-// as the lid closes; once shut they cross the seam into the lower lid.
-export function drawLashes(ctx, lidEdge, close) {
-  if (!lidEdge || close < 0.04) return;
-  const pts = resample(lidEdge, 17);
+export function drawLashes(ctx, eye, close) {
+  if (close < 0.85) return;
+  const n = Math.floor((close - 0.85) / 0.15 * 13);
+  const pts = resample(eye.lower, 15);
   ctx.save();
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  // dark crease under the edge, then the seam thread itself
-  ctx.strokeStyle = `rgba(40,10,18,${0.35 + 0.25 * close})`; ctx.lineWidth = 5;
-  polyline(ctx, pts.map((p) => [p[0] + 0.5, p[1] + 2.5])); ctx.stroke();
-  ctx.strokeStyle = THREAD; ctx.lineWidth = 2.6;
-  polyline(ctx, pts); ctx.stroke();
-  const n = Math.min(15, Math.round(15 * Math.min(1, 0.25 + close * 1.1)));
-  ctx.lineWidth = 1.8;
-  for (let i = 1; i <= n; i++) {
+  ctx.strokeStyle = THREAD; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+  for (let i = 1; i <= Math.min(n, 13); i++) {
     const tg = tangentAt(pts, i);
     const nn = [-tg[1], tg[0]];
-    const p = pts[i], sk = (hash(i, 77) - 0.5) * 0.6;
-    const len = 6 + 5 * close;
+    const p = pts[i], sk = (hash(i, 77) - 0.5) * 0.5;
     ctx.beginPath();
-    ctx.moveTo(p[0] - nn[0] * 5 - tg[0] * sk * 4, p[1] - nn[1] * 5 - tg[1] * sk * 4);
-    ctx.lineTo(p[0] + nn[0] * len + tg[0] * sk * 6, p[1] + nn[1] * len + tg[1] * sk * 6);
+    ctx.moveTo(p[0] - nn[0] * 6 - tg[0] * sk * 6, p[1] - nn[1] * 6 - tg[1] * sk * 6);
+    ctx.lineTo(p[0] + nn[0] * 5 + tg[0] * sk * 6, p[1] + nn[1] * 5 + tg[1] * sk * 6);
     ctx.stroke();
   }
   ctx.restore();

@@ -1,14 +1,5 @@
 # Study 01: Review against the mood board
 
-## Revision 3 (Toni: make the eye closing more visible)
-
-- **Longer study.** The study is now 11 s. Two clocks run: real time and story time. The story slows around the eye: the eye is held open for about 1 s, the lid closes over 1.5 s (at 8 fps), and it stays shut for 0.5 s before the rib begins (`timeline.js`, `warp`).
-- **Camera.** The camera moves in on the eye (about 1.95×) while it is open and closing, then draws back as the rib grows. The ground and its memory are kept in world space so they stay put under the moving camera.
-- **The eye itself:**
-  - The eyelid is now the most pink/coral painted fragment, instead of the palest one.
-  - The iris cell is pierced with a dark pupil and a small wet highlight, so the open eye looks back.
-  - The lid's edge is a dark stitched seam with a crease shadow. Lash stitches appear across it as it comes down and remain once it is shut.
-
 ## Revision 2 (after Toni's feedback: "too cartoony")
 
 **What changed:**
